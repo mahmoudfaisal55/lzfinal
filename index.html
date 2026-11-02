@@ -1,0 +1,90 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>بوصلتي - التمكين المهني الذكي</title>
+    <meta name="description" content="منصة إرشادية مهنية متطورة لطلبة الصف الحادي عشر تعتمد على تقنيات الذكاء الاصطناعي ونظرية هولاند لتحليل الميول المهنية وتوجيه الطلاب نحو مستقبل واعد." />
+    <meta property="og:title" content="بوصلتي - التمكين المهني الذكي" />
+    <meta property="og:description" content="منصة إرشادية مهنية متطورة لطلبة الصف الحادي عشر تعتمد على تقنيات الذكاء الاصطناعي ونظرية هولاند لتحليل الميول المهنية وتوجيه الطلاب نحو مستقبل واعد." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ar_JO" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Rubik', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --emerald-500: #10b981;
+      }
+      body {
+        font-family: 'Rubik', sans-serif !important;
+        background-color: #fcfdfe;
+        color: #1e293b;
+        scroll-behavior: smooth;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      /* تحسين التمرير */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 20px;
+      }
+      
+      /* تحسينات النصوص */
+      p {
+        line-height: 1.8;
+      }
+
+      /* Animations */
+      @keyframes fade-in-up {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in-up {
+        animation: fade-in-up 0.5s ease-out forwards;
+      }
+
+      /* تحسين استجابة الأزرار */
+      button:active {
+        transform: scale(0.97);
+      }
+
+      /* إعدادات الطباعة الاحترافية للتقرير المهني */
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 10mm;
+        }
+        html, body {
+          background-color: #ffffff !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+  </body>
+</html>

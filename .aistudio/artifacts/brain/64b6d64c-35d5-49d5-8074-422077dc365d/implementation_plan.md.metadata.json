@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan to transition all Gemini API calls in the My Compass (بوصلتي) career guidance app to a full-stack server-side architecture while keeping the Arabic RTL UI, RIASEC assessment, AI career counselor, and PDF export behavior completely unchanged.",
+  "updatedAt":  "2026-11-01T23:15:09.411442158Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

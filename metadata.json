@@ -1,0 +1,10 @@
+{
+  "name": "بوصلتي",
+  "description": "منصة إرشادية مهنية متطورة لطلبة الصف الحادي عشر تعتمد على تقنيات الذكاء الاصطناعي ونظرية هولاند لتحليل الميول المهنية وتوجيه الطلاب نحو مستقبل واعد.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
