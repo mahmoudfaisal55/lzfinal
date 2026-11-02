@@ -3,12 +3,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from './components/Layout';
 import CareerChart from './components/CareerChart';
+import AttemptsComparisonChart from './components/AttemptsComparisonChart';
 import PdfReportTemplate from './components/PdfReportTemplate';
 import RiasecIcon from './components/RiasecIcon';
 import { QUESTIONS, SESSIONS, RIASEC_INFO } from './constants';
-import { RIASECScores, ChatMessage, RIASECKey, Session } from './types';
+import { RIASECScores, ChatMessage, RIASECKey, Session, QuizAttempt } from './types';
 import { getCareerGuidance, getInitialAnalysis } from './services/geminiService';
 import { exportReportToPdf } from './utils/exportPdf';
+import { getHollandCode, loadAttemptHistory, saveAttemptHistory } from './utils/attemptHistory';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -26,6 +28,7 @@ const App: React.FC = () => {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [pdfStatus, setPdfStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [reportGeneratedAt, setReportGeneratedAt] = useState<Date>(() => new Date());
+  const [attemptHistory, setAttemptHistory] = useState<QuizAttempt[]>(() => loadAttemptHistory());
   const chatEndRef = useRef<HTMLDivElement>(null);
   const pdfReportRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -71,6 +74,24 @@ const App: React.FC = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, isChatLoading]);
 
+  useEffect(() => {
+    if (!scores || attemptHistory.length === 0) return;
+    setAttemptHistory(prev => {
+      if (prev.length === 0) return prev;
+      const lastIdx = prev.length - 1;
+      const last = prev[lastIdx];
+      const nextName = studentName.trim() || undefined;
+      const nextGrade = studentGrade.trim() || undefined;
+      if (last.studentName === nextName && last.studentGrade === nextGrade) {
+        return prev;
+      }
+      const updated = [...prev];
+      updated[lastIdx] = { ...last, studentName: nextName, studentGrade: nextGrade };
+      saveAttemptHistory(updated);
+      return updated;
+    });
+  }, [studentName, studentGrade, scores]);
+
   const calculateResult = async () => {
     const newScores: RIASECScores = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
     Object.entries(answers).forEach(([id, val]) => {
@@ -79,15 +100,103 @@ const App: React.FC = () => {
         newScores[question.category] += val as number;
       }
     });
+    const now = new Date();
+    const attemptId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `attempt-${now.getTime()}`;
+
+    const newAttempt: QuizAttempt = {
+      id: attemptId,
+      attemptNumber: attemptHistory.length + 1,
+      timestamp: now.toISOString(),
+      scores: newScores,
+      dominantCode: getHollandCode(newScores),
+      studentName: studentName.trim() || undefined,
+      studentGrade: studentGrade.trim() || undefined,
+    };
+
+    setAttemptHistory(prev => {
+      const updated = [...prev, { ...newAttempt, attemptNumber: prev.length + 1 }];
+      saveAttemptHistory(updated);
+      return updated;
+    });
+
     setScores(newScores);
-    setReportGeneratedAt(new Date());
+    setReportGeneratedAt(now);
     setQuizStarted(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
     setIsChatLoading(true);
     const analysis = await getInitialAnalysis(newScores);
     setAiAnalysis(analysis);
+    setAttemptHistory(prev => {
+      const updated = prev.map(item =>
+        item.id === attemptId ? { ...item, aiAnalysis: analysis } : item
+      );
+      saveAttemptHistory(updated);
+      return updated;
+    });
     setIsChatLoading(false);
+  };
+
+  const handleRetakeQuiz = () => {
+    setScores(null);
+    setAnswers({});
+    setAiAnalysis('');
+    setChatMessages([]);
+    setPdfStatus('idle');
+    setQuizStarted(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClearPreviousAttempts = () => {
+    if (!scores) return;
+    const latestExisting = attemptHistory[attemptHistory.length - 1];
+    const singleCurrent: QuizAttempt = {
+      id: latestExisting?.id || `attempt-${Date.now()}`,
+      attemptNumber: 1,
+      timestamp: latestExisting?.timestamp || new Date().toISOString(),
+      scores,
+      dominantCode: getHollandCode(scores),
+      aiAnalysis: aiAnalysis || latestExisting?.aiAnalysis,
+      studentName: studentName.trim() || undefined,
+      studentGrade: studentGrade.trim() || undefined,
+    };
+    const nextHistory = [singleCurrent];
+    setAttemptHistory(nextHistory);
+    saveAttemptHistory(nextHistory);
+  };
+
+  const handleRestoreLatestAttempt = () => {
+    if (attemptHistory.length === 0) return;
+    const latest = attemptHistory[attemptHistory.length - 1];
+    setScores(latest.scores);
+    setReportGeneratedAt(new Date(latest.timestamp));
+    if (latest.studentName && !studentName) setStudentName(latest.studentName);
+    if (latest.studentGrade && !studentGrade) setStudentGrade(latest.studentGrade);
+    setChatMessages([]);
+    setPdfStatus('idle');
+    setQuizStarted(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (latest.aiAnalysis) {
+      setAiAnalysis(latest.aiAnalysis);
+    } else {
+      setAiAnalysis('');
+      setIsChatLoading(true);
+      getInitialAnalysis(latest.scores).then((analysis) => {
+        setAiAnalysis(analysis);
+        setAttemptHistory(prev => {
+          const updated = prev.map(item =>
+            item.id === latest.id ? { ...item, aiAnalysis: analysis } : item
+          );
+          saveAttemptHistory(updated);
+          return updated;
+        });
+        setIsChatLoading(false);
+      });
+    }
   };
 
   const handleSendMessage = async () => {
@@ -508,6 +617,15 @@ const App: React.FC = () => {
               )}
             </div>
 
+            {/* Multi-Attempt Recharts Comparison Section (shown prominently whenever student retakes the quiz) */}
+            {attemptHistory.length >= 2 && (
+              <AttemptsComparisonChart
+                attempts={attemptHistory}
+                onClearPreviousAttempts={handleClearPreviousAttempts}
+                onRetakeQuiz={handleRetakeQuiz}
+              />
+            )}
+
             <div className="grid lg:grid-cols-12 gap-8 sm:gap-12 items-start">
             <div className="lg:col-span-7 space-y-8 sm:space-y-10">
               <div className="bg-white p-6 sm:p-10 rounded-[2.5rem] sm:rounded-[3.5rem] shadow-2xl shadow-slate-200/40 border border-slate-100 relative overflow-hidden">
@@ -770,6 +888,27 @@ const App: React.FC = () => {
             </div>
           </div>
           
+            {/* First-attempt notice explaining comparison chart on retake */}
+            {attemptHistory.length < 2 && (
+              <AttemptsComparisonChart
+                attempts={
+                  attemptHistory.length === 1
+                    ? attemptHistory
+                    : [
+                        {
+                          id: 'current-session',
+                          attemptNumber: 1,
+                          timestamp: reportGeneratedAt.toISOString(),
+                          scores,
+                          dominantCode: getHollandCode(scores),
+                        },
+                      ]
+                }
+                onClearPreviousAttempts={handleClearPreviousAttempts}
+                onRetakeQuiz={handleRetakeQuiz}
+              />
+            )}
+
             <div className="mt-12 flex flex-wrap justify-center items-center gap-4">
               <button
                 onClick={handleDownloadPdf}
@@ -783,7 +922,7 @@ const App: React.FC = () => {
               </button>
 
               <button 
-                onClick={() => {setScores(null); setAnswers({}); setAiAnalysis(''); setChatMessages([]); setPdfStatus('idle');}}
+                onClick={handleRetakeQuiz}
                 className="px-10 py-4 bg-slate-100 text-slate-600 rounded-full font-bold hover:bg-slate-200 transition-all text-sm"
               >
                 إعادة المقياس مرة أخرى
@@ -827,6 +966,27 @@ const App: React.FC = () => {
               لقد صممنا هذا المقياس بناءً على أحدث الدراسات البحثية في مدرسة أحمد اللوزي الثانوية للبنين لمساعدتك على تحديد هويتك المهنية بدقة.
             </p>
           </div>
+
+          {attemptHistory.length > 0 && (
+            <div className="bg-white border border-emerald-200 rounded-[2rem] p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-right shadow-sm">
+              <div className="space-y-1">
+                <div className="text-xs font-bold text-emerald-700 tabular-nums">
+                  محاولات سابقة محفوظة: {attemptHistory.length} · آخر رمز مهني:{' '}
+                  {attemptHistory[attemptHistory.length - 1].dominantCode}
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  عند إتمامك لهذا الاختبار الجديد، سيظهر لك رسم بياني مقارن يوضح تغير نتائجك مقارنة بمحاولاتك السابقة.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRestoreLatestAttempt}
+                className="px-5 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl font-bold text-sm transition-colors whitespace-nowrap shrink-0"
+              >
+                استعراض آخر نتيجة محفوظة
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-right bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
             <div className="flex items-center gap-3">

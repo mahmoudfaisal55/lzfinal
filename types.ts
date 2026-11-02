@@ -29,3 +29,15 @@ export interface Session {
   icon: string;
   detailedInfo?: string;
 }
+
+export interface QuizAttempt {
+  id: string;
+  attemptNumber: number;
+  timestamp: string;
+  scores: RIASECScores;
+  dominantCode: string;
+  aiAnalysis?: string;
+  studentName?: string;
+  studentGrade?: string;
+}
+
